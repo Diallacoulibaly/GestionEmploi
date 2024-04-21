@@ -4,28 +4,47 @@ require "connexion.php";
 
 // Vérifie si le formulaire a été soumis
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Vérifie si les champs matière et salle ne sont pas vides et que le groupe et la filière sont sélectionnés
-    if (!empty($_POST['groupe'])  ) {
-        $groupe = $_POST['groupe'];
+    // Vérifie si les champs groupe sont sélectionnés
+    if (!empty($_POST['groupe'])) {
+        $groupe = mysqli_real_escape_string($cnx, $_POST['groupe']);
+
+        // Variable pour indiquer si un conflit a été détecté
+        $conflit = false;
+
         // Boucle pour traiter chaque cellule de l'emploi du temps
         foreach ($_POST['seance'] as $seance => $jours) {
             foreach ($jours as $jour => $contenu) {
                 // Vérifie si les champs matière et salle ne sont pas vides
                 if (!empty($contenu['matiere']) && !empty($contenu['salle'])) {
-                    $matiere = $contenu['matiere'];
-                    $salle = $contenu['salle'];
-                    // Enregistrement dans la base de données
-                    $query = "INSERT INTO emploi_du_temps (seance, jour, matiere, salle, groupe) VALUES ('$seance', '$jour', '$matiere', '$salle', '$groupe')";
-                    
-                    mysqli_query($cnx, $query);
+                    $matiere = mysqli_real_escape_string($cnx, $contenu['matiere']);
+                    $salle = mysqli_real_escape_string($cnx, $contenu['salle']);
+
+                    // Vérification si une séance similaire existe déjà
+                    $check_query = "SELECT * FROM emploi_du_temps WHERE jour = '$jour' AND seance = '$seance' AND salle = '$salle'";
+                    $check_result = mysqli_query($cnx, $check_query);
+                    if(mysqli_num_rows($check_result) > 0) {
+                        // Une entrée similaire existe déjà, indiquer le conflit
+                        $conflit = true;
+                    } else {
+                        // Aucune entrée similaire n'existe, procédez à l'insertion dans la base de données
+                        $query = "INSERT INTO emploi_du_temps (seance, jour, matiere, salle, groupe) VALUES ('$seance', '$jour', '$matiere', '$salle', '$groupe')";
+                        mysqli_query($cnx, $query);
+                    }
                 }
             }
         }
-        // Redirection vers la page précédente ou une autre page après l'enregistrement
-        header("Location: c.php");
-        exit;
+
+        // Vérifie s'il y a eu un conflit
+        if ($conflit) {
+            // Affiche le message d'erreur
+            echo "Erreur : C'est déjà rempli.";
+        } else {
+            // Redirection vers la page précédente ou une autre page après l'enregistrement
+            header("Location: c.php");
+            exit;
+        }
     } else {
-        echo "Veuillez sélectionner un groupe et une filière.";
+        echo "Veuillez sélectionner un groupe.";
     }
 }
 ?>
