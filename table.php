@@ -1,342 +1,162 @@
+<?php
+require "authen.php";
+// Vérifie si le formulaire a été soumis
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Vérifie si les champs groupe sont sélectionnés
+    if (!empty($_POST['groupe'])) {
+        $groupe = mysqli_real_escape_string($cn, $_POST['groupe']);
+        // Variable pour indiquer si un conflit a été détecté
+        $conflit = false;
+        // Boucle pour traiter chaque cellule de l'emploi du temps
+        foreach ($_POST['seance'] as $seance => $jours) {
+            foreach ($jours as $jour => $contenu) {
+                // Vérifie si les champs matière et salle ne sont pas vides
+                if (!empty($contenu['matière']) && !empty($contenu['salle'])) {
+                    $matiere = mysqli_real_escape_string($cn, $contenu['matière']);
+                    $salle = mysqli_real_escape_string($cn, $contenu['salle']);
+                    // Vérification si une séance similaire existe déjà
+                    $check_query = "SELECT * FROM emploi_du_temps WHERE jour = '$jour' AND seance = '$seance' AND salle = '$salle'";
+                    $check_result = mysqli_query($cn, $check_query);
+                    if(mysqli_num_rows($check_result) > 0) {
+                        // Une entrée similaire existe déjà, indiquer le conflit
+                        $conflit = true;
+                    } else {
+                        // Aucune entrée similaire n'existe, procédez à l'insertion dans la base de données
+                        $query = "INSERT INTO emploi_du_temps (seance, jour, matière, salle, groupe) VALUES ('$seance', '$jour', '$matière', '$salle', '$groupe')";
+                        mysqli_query($cn, $query);
+                    }
+                }
+            }
+        }
+        // Vérifie s'il y a eu un conflit
+        if ($conflit) {
+            // Affiche le message d'erreur
+            echo "<div class='alert alert-danger' role='alert'>Erreur : La salle est deja prise.</div>";
+        } else {
+            // Redirection vers la page précédente ou une autre page après l'enregistrement
+            header('Location: table.php');
+            exit;
+        }
+    } else {
+        echo "<div class='alert alert-warning' role='alert'>Veuillez sélectionner un groupe.</div>";
+    }}
+?>
+
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Emploi du temps</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
-         body{
-            display: flex;
-            flex-direction: row;
+        table {
+            border-collapse: collapse;
+            width: 100%;
         }
-       table,td,th{
+        th, td {
             border: 1px solid black;
-            color: black;
-            
+            padding: 8px;
+            text-align: center;
         }
-        th{
-            padding: 20px;
-        } 
-
-
-        body {
-    font-family: Arial, sans-serif;
-}
-
-table {
-    border-collapse: collapse;
-    width: 100%;
-}
-
-td, th {
-    border: 1px solid #dddddd;
-    text-align: center;
-    padding: 8px;
-    width:25vh;
-}
-
-th {
-    background-color: #f2f2f2;
-    font-weight: bold;
-}
-.bourhil {
-    background-color: #66eccb;
-    
-}
-
-.salhi2 {
-    background-color: #93e436;
-   
-}
-.salhi {
-    background-color: #2600ff;
-   
-}
-
-.yasmine {
-    background-color: #ff6347;
-   
-}
-
-.yatobane {
-    background-color: #854d1a;
-   
-}
-.yatobane2 {
-    background-color: #48064e;
-    
-}
-
-.kabba2 {
-    background-color: #31041e;
-    
-}
-.kabba {
-    background-color: #d8e61c;
-    
-}
-
-
-.anglais {
-    background-color: #8f0756;
-    
-}
-
- .matieres ul{
-    display: flex;
-    align-items: center;
-    height: 30px;
-    list-style-type: none;
-    color: white;
-    border-radius: 3px;
-    background-color:  #ff6347; 
-    padding: 0 5px;
-    max-width:168px;
-    
-
-    
-}
-
-button{
-    background-color: #4b81d1;
-    color: white;
-    border: 1px solid #4b81d1;
-    height: 30px;
-    width: 30px;
-}
-
-
-img{
-    height: 12px;
-    width: 12px;
-    background-color: none;
-    /* float: right; */
-
-}
-input{
-    height: 30px;
-    border-radius :3px; 
-    border: 1px solid gray;
-}
-#couleur{
-    margin-bottom: 5px;
-}
-
+        th {
+            background-color: #f2f2f2;
+        }
     </style>
 </head>
-
 <body>
+    <div class="container">
+        <h2 class="my-4">Emploi du temps</h2>
+        <p><strong>Matin</strong>: 10 minutes de pause de 10:20 à 10:30 </p>
+        <p><strong>Soir</strong>:  10 minutes de pause de 15:30 à 15:40 </p>
 
-<div class="main">
-<div class="filtre">
-<input type="text" placeholder="Filtrer...">
-</div>
-<div class="matieres">
-<ul >
-    <li>Français  <img src="image/suppr.png" alt="suppr"> <img src="image/modif.png" alt="modif"> </li>
-</ul>
+        <form id="form_emploi_temps" action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post">
+            <div class="form-group">
+                <label for="groupeSelect"><strong>Groupe:</strong></label>
+                <select class="form-control" id="groupeSelect" name="groupe">
+                    <?php
+                    $groupe_query = "SELECT groupe FROM groupe";
+                    $groupe_result = mysqli_query($cn, $groupe_query);
+                    if ($groupe_result->num_rows > 0) {
+                        while ($groupe_row = mysqli_fetch_assoc($groupe_result)) {
+                            echo "<option>" . $groupe_row["groupe"] . "</option>";
+                        }
+                    }
+                    ?>
+                </select>
+            </div>
 
-</div>
+            <table class="table table-bordered">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Séance</th>
+                        <?php
+                        // Récupérer les jours de la semaine depuis la table jours_semaine
+                        $jours_query = "SELECT jour_nom FROM jours_semaine";
+                        $jours_result = mysqli_query($cn, $jours_query);
+                        if ($jours_result->num_rows > 0) {
+                            while ($row = mysqli_fetch_assoc($jours_result)) {
+                                echo "<th>" . $row["jour_nom"] . "</th>";
+                            }
+                        }
+                        ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    // Récupérer les heures depuis la table seance
+                    $heures_query = "SELECT seance FROM seance";
+                    $heures_result = mysqli_query($cn, $heures_query);
+                    if ($heures_result->num_rows > 0) {
+                        while ($seance_row = mysqli_fetch_assoc($heures_result)) {
+                            $heure_formattee = $seance_row["seance"];
+                            echo "<tr>";
+                            echo "<td>" . $heure_formattee . "</td>";
+                            // Pour chaque heure, afficher un select avec les options des matières et des salles
+                            $jours_result->data_seek(0); // Remettre le pointeur de résultat au début
+                            while ($jour_row = mysqli_fetch_assoc($jours_result)) {
+                                echo "<td>";
+                                echo "<div class='form-group'>";
+                                // Sélecteur de matière
+                                echo "<select class='form-control' name='seance[$heure_formattee][" . $jour_row["jour_nom"] . "][matière]'>";
+                                $matieres_query = "SELECT Nom_ma FROM matière";
+                                $matieres_result = mysqli_query($cn, $matieres_query);
+                                if ($matieres_result->num_rows > 0) {
+                                    echo "<option value=''> </option>";
+                                    while ($matiere_row = mysqli_fetch_assoc($matieres_result)) {
+                                        echo "<option>" . $matiere_row["Nom_ma"] . "</option>";
+                                    }
+                                }
+                                echo "</select>";
+                                // Sélecteur de salle
+                                echo "<select class='form-control mt-2' name='seance[$heure_formattee][" . $jour_row["jour_nom"] . "][salle]'>";
+                                $salles_query = "SELECT Nom_sal FROM salle";
+                                $salles_result = mysqli_query($cn, $salles_query);
+                                if ($salles_result->num_rows > 0) {
+                                    echo "<option value=''> </option>";
+                                    while ($salle_row = mysqli_fetch_assoc($salles_result)) {
+                                        echo "<option>" . $salle_row["Nom_sal"] . "</option>";
+                                    }
+                                }
+                                echo "</select>";
+                                echo "</div>";
+                                echo "</td>";
+                            }
+                            echo "</tr>";
+                        }
+                    }
+                    ?>
+                </tbody>
+            </table>
+            <button type="submit" class="btn btn-primary">Enregistrer l'emploi du temps</button>
+        </form>
+    </div>
 
-<input type="color" name="Couleur" id="couleur" >
-<input type="text" placeholder="Nom de la matière"  >
-<button>+</button>
-</div>
-<table>
-    <tr>
-        <th>Heure</th>
-        <th>Lundi</th>
-        <th>Mardi</th>
-        <th>Mercredi</th>
-        <th>Jeudi</th>
-        <th>Vendredi</th>
-        <th>Samedi</th>
-    </tr>
-    <tr>
-        <td>08:30</td>
-        <td rowspan="5" class="bourhil">BOURHIL</td>
-        <td rowspan="11" class="yatobane">YATOBANE</td>
-        <td ></td>
-        <td ></td>
-        <td></td>
-        <td rowspan="7" class="kabba">KABBA</td>
-    
-    </tr>
-    <tr>
-        <td>09:00</td>
-        <td ></td>
-        <td ></td>
-        <td></td>
-        
-    
-    </tr>
-    <tr>
-        <td>09:30</td>
-        <td ></td>
-        <td ></td>
-        <td></td>
-        
-    
-    </tr>
-
-    <tr>
-        <td>10:00</td>
-        <td ></td>
-        <td ></td>
-        <td></td>
-        
-    
-    </tr>
-
-    <tr>
-        <td>10:30</td>
-        <td ></td>
-        <td ></td>
-        <td></td>
-        
-    
-    </tr>
-
-    <tr>
-        <td>11:00</td>
-        <td rowspan="6" class="salhi">SALHI</td>
-        <td ></td>
-        <td ></td>
-        <td></td>
-        
-    
-    </tr>
-
-    <tr>
-        <td>11:30</td>
-        <td ></td>
-        <td ></td>
-        <td></td>
-       
-    
-    </tr>
-
-    <tr>
-        <td>12:00</td>
-        <td ></td>
-        <td ></td>
-        <td></td>
-        <td></td>
-
-        
-    
-    </tr>
-
-    <tr>
-        <td>12:30</td>
-        <td ></td>
-        <td ></td>
-        <td></td>
-        <td></td>
-    </tr>
-
-    <tr>
-        <td>13:00</td>
-        <td ></td>
-        <td ></td>
-        <td></td>
-        <td></td>
-    </tr>
-
-    <tr>
-        <td>13:30</td>
-        <td rowspan="5" class="yasmine">YASMINE</td> 
-        <td rowspan="11" class="salhi2">SALHI</td>
-        <td ></td>
-        <td></td>
-    </tr>
-
-    <tr>
-        <td>14:00</td>
-        <td rowspan=""></td>
-        <td rowspan=""></td>
-        <td ></td>
-        <td></td>
-    </tr>
-
-    <tr>
-        <td>14:30</td>
-        <td rowspan=""></td>
-        <td rowspan=""></td>
-        <td rowspan="4" class="anglais">ANGLAIS</td>
-        <td ></td> 
-    </tr>
-
-    <tr>
-        <td>15:00</td>
-        <td rowspan=""></td>
-        <td rowspan=""></td>
-        <td ></td>
-    </tr>
-
-    <tr>
-        <td>15:30</td>
-        <td rowspan=""></td>
-        <td rowspan=""></td>
-        <td ></td>
-    </tr>
-
-    <tr>
-        <td>16:00</td>
-        <td ></td>
-        <td></td>
-        <td rowspan="6" class="yatobane2">YATOBANE</td>
-        <td></td>
-      
-    </tr>
-
-    <tr>
-        <td>16:30</td>
-        <td rowspan=""></td>
-        <td ></td>
-        <td rowspan="5" class="kabba2">KABBA</td>
-        <td></td>
-
-    </tr>
-
-    <tr>
-        <td>17:00</td>
-        <td rowspan=""></td>
-        <td rowspan=""></td>
-        <td ></td>
-    </tr>
-
-    <tr>
-        <td>17:30</td>
-        <td rowspan=""></td>
-        <td ></td>
-        <td></td>
-
-    </tr>
-
-    <tr>
-        <td>18:00</td>
-        <td rowspan=""></td>
-        <td ></td>
-        <td></td>
-
-    </tr>
-
-    <tr>
-        <td>18:30</td>
-        <td rowspan=""></td>
-        <td ></td>
-        <td></td>
-
-
-    </tr>
-
-
-
-
-</table>
-</div>
-
-
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
+
+<?php
+mysqli_close($cn);
+
+?>
