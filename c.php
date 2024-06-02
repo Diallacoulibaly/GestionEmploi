@@ -53,7 +53,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             echo "<div class='alert alert-danger' role='alert'>Erreur : La salle est deja prise.</div>";
         } else {
             // Redirection vers la page précédente ou une autre page après l'enregistrement
-            header('Location: table.php');
+            header('Location: c.php');
             exit;
         }
     } else {
